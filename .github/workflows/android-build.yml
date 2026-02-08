@@ -18,9 +18,13 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: gradle
 
-      - name: Verify Java
-        run: java -version
+      - name: Print tool versions
+        run: |
+          java -version
+          cd android
+          ./gradlew --version
 
       - name: Setup Node
         uses: actions/setup-node@v4
