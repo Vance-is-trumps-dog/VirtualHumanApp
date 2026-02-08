@@ -1,17 +1,16 @@
 buildscript {
     ext {
-        buildToolsVersion = "31.0.0"
+        buildToolsVersion = "30.0.2"
         minSdkVersion = 21
-        compileSdkVersion = 31
-        targetSdkVersion = 31
-        ndkVersion = "21.4.7075529"
+        compileSdkVersion = 30
+        targetSdkVersion = 30
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.2.2")
+        classpath("com.android.tools.build:gradle:7.0.4")
         classpath("com.facebook.react:react-native-gradle-plugin")
     }
 }
@@ -20,11 +19,5 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url("$rootDir/../node_modules/react-native/android")
-        }
-        maven {
-            url("$rootDir/../node_modules/jsc-android/dist")
-        }
     }
 }
