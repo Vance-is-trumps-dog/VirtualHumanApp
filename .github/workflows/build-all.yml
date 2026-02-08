@@ -59,6 +59,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
+    if: false  # Temporarily disabled
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

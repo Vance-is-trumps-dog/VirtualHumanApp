@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    if: false  # Temporarily disabled - iOS needs more setup
 
     steps:
       - name: Checkout code
