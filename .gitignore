@@ -1,0 +1,59 @@
+# React Native
+node_modules/
+npm-debug.log
+yarn-error.log
+.expo/
+.expo-shared/
+
+# Android
+android/app/build/
+android/.gradle/
+android/gradle/
+*.apk
+*.aab
+
+# iOS
+ios/Pods/
+ios/build/
+*.ipa
+*.xcworkspace
+*.xcuserdata
+
+# 环境变量
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.log
+*.tmp
+*.temp
+.cache/
+
+# 测试覆盖率
+coverage/
+
+# Bundle
+*.jsbundle
+index.android.bundle
+index.ios.bundle
+
+# 数据库文件（开发用）
+*.db
+*.sqlite
+
+# 构建产物
+dist/
+build/
