@@ -9,16 +9,16 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 
 // 屏幕导入
-import HomeScreen from '@screens/Home';
-import CreateVirtualHumanScreen from '@screens/CreateVirtualHuman';
-import CreateVirtualHumanAdvancedScreen from '@screens/CreateVirtualHumanAdvanced';
-import ChatScreen from '@screens/Chat';
-import VoiceChatScreen from '@screens/VoiceChat';
-import VideoChatScreen from '@screens/VideoChat';
-import SettingsScreen from '@screens/SettingsScreen';
-import VirtualHumanDetailScreen from '@screens/VirtualHumanDetail';
-import IntelligenceScreen from '@screens/IntelligenceScreen';
-import DataManagementScreen from '@screens/DataManagementScreen';
+import HomeScreen from '../screens/Home';
+import CreateVirtualHumanScreen from '../screens/CreateVirtualHuman';
+import CreateVirtualHumanAdvancedScreen from '../screens/CreateVirtualHumanAdvanced';
+import ChatScreen from '../screens/Chat';
+import VoiceChatScreen from '../screens/VoiceChat';
+import VideoChatScreen from '../screens/VideoChat';
+import SettingsScreen from '../screens/SettingsScreen';
+import VirtualHumanDetailScreen from '../screens/VirtualHumanDetail';
+import IntelligenceScreen from '../screens/IntelligenceScreen';
+import DataManagementScreen from '../screens/DataManagementScreen';
 
 // 类型定义
 export type RootStackParamList = {
@@ -64,6 +64,7 @@ function MainTabs() {
         name="Home"
         component={HomeScreen}
         options={{
+          headerShown: false,
           title: '虚拟人',
           tabBarLabel: '首页',
           tabBarIcon: ({ color }) => (

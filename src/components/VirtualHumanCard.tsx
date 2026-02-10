@@ -10,9 +10,9 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { VirtualHuman } from '@types';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import { timeAgo } from '@utils/helpers';
+import { VirtualHuman } from '../types';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import { timeAgo } from '../utils/helpers';
 
 interface VirtualHumanCardProps {
   virtualHuman: VirtualHuman;
@@ -37,7 +37,7 @@ export const VirtualHumanCard: React.FC<VirtualHumanCardProps> = ({
         source={
           virtualHuman.avatarUrl
             ? { uri: virtualHuman.avatarUrl }
-            : require('@assets/images/default-avatar.png')
+            : { uri: 'https://via.placeholder.com/150' }
         }
         style={styles.avatar}
       />

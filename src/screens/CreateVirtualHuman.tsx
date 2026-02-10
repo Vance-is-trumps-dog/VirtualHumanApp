@@ -15,10 +15,10 @@ import {
   Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useVirtualHumanStore } from '@store';
-import { Button, Loading } from '@components';
-import { Colors, Spacing, FontSizes, BorderRadius, VIRTUAL_HUMAN_TEMPLATES } from '@constants';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { useVirtualHumanStore } from '../store';
+import { Button, Loading } from '../components';
+import { Colors, Spacing, FontSizes, BorderRadius, VIRTUAL_HUMAN_TEMPLATES, BUILTIN_MODELS, BUILTIN_VOICES, BUILTIN_OUTFITS } from '../constants';
 
 type CreateVirtualHumanScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -34,16 +34,25 @@ export const CreateVirtualHumanScreen: React.FC<CreateVirtualHumanScreenProps> =
 }) => {
   const { createVirtualHuman, loading } = useVirtualHumanStore();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isCustom, setIsCustom] = useState(false); // 新增：是否为自定义模式
   const [name, setName] = useState('');
   const [step, setStep] = useState<'template' | 'name'>('template');
 
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplateId(templateId);
+    setIsCustom(false);
+  };
+
+  // 新增：处理自定义创建
+  const handleCustomCreate = () => {
+    setSelectedTemplateId(null);
+    setIsCustom(true);
+    setStep('name');
   };
 
   const handleNext = () => {
-    if (!selectedTemplateId) {
-      Alert.alert('提示', '请选择一个模板');
+    if (!selectedTemplateId && !isCustom) {
+      Alert.alert('提示', '请选择一个模板或点击自定义创建');
       return;
     }
     setStep('name');
@@ -55,26 +64,45 @@ export const CreateVirtualHumanScreen: React.FC<CreateVirtualHumanScreenProps> =
       return;
     }
 
-    if (!selectedTemplateId) {
-      return;
-    }
-
-    const template = VIRTUAL_HUMAN_TEMPLATES.find(t => t.id === selectedTemplateId);
-    if (!template) {
-      return;
-    }
-
     try {
-      await createVirtualHuman({
-        name: name.trim(),
-        gender: 'female', // 根据模板推断
-        personality: template.personality,
-        backgroundStory: template.backgroundStory,
-        modelId: template.modelId,
-        voiceId: template.voiceId,
-        outfitId: template.outfitId,
-        templateId: template.id,
-      });
+      let createData;
+
+      if (selectedTemplateId) {
+         // 模板创建逻辑
+         const template = VIRTUAL_HUMAN_TEMPLATES.find(t => t.id === selectedTemplateId);
+         if (!template) return;
+
+         createData = {
+          name: name.trim(),
+          gender: 'female',
+          personality: template.personality,
+          backgroundStory: template.backgroundStory,
+          modelId: template.modelId,
+          voiceId: template.voiceId,
+          outfitId: template.outfitId,
+          templateId: template.id,
+        };
+      } else {
+         // 自定义创建逻辑 (使用默认值)
+         createData = {
+          name: name.trim(),
+          gender: 'female',
+          personality: {
+            extroversion: 0.5,
+            rationality: 0.5,
+            seriousness: 0.5,
+            openness: 0.5,
+            gentleness: 0.5,
+          },
+          backgroundStory: '这是一个全新创建的虚拟人。',
+          modelId: BUILTIN_MODELS[0]?.id || 'default_model',
+          voiceId: BUILTIN_VOICES[0]?.id || 'default_voice',
+          outfitId: BUILTIN_OUTFITS[0]?.id || 'default_outfit',
+          templateId: null,
+        };
+      }
+
+      await createVirtualHuman(createData);
 
       Alert.alert('成功', '虚拟人创建成功！', [
         {
@@ -83,7 +111,8 @@ export const CreateVirtualHumanScreen: React.FC<CreateVirtualHumanScreenProps> =
         },
       ]);
     } catch (error) {
-      Alert.alert('错误', '创建失败，请重试');
+      console.error('Creation failed:', error);
+      Alert.alert('错误', `创建失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -135,10 +164,16 @@ export const CreateVirtualHumanScreen: React.FC<CreateVirtualHumanScreenProps> =
 
           <View style={styles.footer}>
             <Button
+              title="自定义创建"
+              onPress={handleCustomCreate}
+              variant="outline"
+              style={{ flex: 1, marginRight: Spacing.sm }}
+            />
+            <Button
               title="下一步"
               onPress={handleNext}
               variant="primary"
-              fullWidth
+              style={{ flex: 1 }}
               disabled={!selectedTemplateId}
             />
           </View>

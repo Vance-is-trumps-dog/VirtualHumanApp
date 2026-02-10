@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useChatStore, useVirtualHumanStore } from '@store';
-import { VoiceButton, Loading, AudioPlayer } from '@components';
-import { Colors, Spacing, FontSizes } from '@constants';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { useChatStore, useVirtualHumanStore } from '../store';
+import { VoiceButton, Loading, AudioPlayer } from '../components';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
 
 type VoiceChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type VoiceChatScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Chat'>;
@@ -74,7 +74,7 @@ export const VoiceChatScreen: React.FC<VoiceChatScreenProps> = ({ route, navigat
           source={
             currentVirtualHuman.avatarUrl
               ? { uri: currentVirtualHuman.avatarUrl }
-              : require('@assets/images/default-avatar.png')
+              : { uri: 'https://via.placeholder.com/120' }
           }
           style={styles.avatar}
         />

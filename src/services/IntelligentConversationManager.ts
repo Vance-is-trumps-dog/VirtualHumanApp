@@ -32,6 +32,16 @@ export interface IntelligentChatResponse {
 
 export class IntelligentConversationManager {
   /**
+   * 初始化服务
+   */
+  async initialize(): Promise<void> {
+    console.log('Initializing IntelligentConversationManager...');
+    // 这里可以预加载模型配置或其他初始化工作
+    // 目前暂时保持为空，或者进行简单的检查
+    return Promise.resolve();
+  }
+
+  /**
    * 智能对话处理
    * 整合所有智能功能
    */
@@ -40,30 +50,32 @@ export class IntelligentConversationManager {
   ): Promise<IntelligentChatResponse> {
     const { virtualHumanId, userMessage } = request;
 
-    // 1. 获取虚拟人信息
-    const virtualHuman = await VirtualHumanDAO.getById(virtualHumanId);
+    // 1. 并行获取虚拟人信息和分析用户情感 (降低延迟)
+    const [virtualHuman, userEmotion] = await Promise.all([
+      VirtualHumanDAO.getById(virtualHumanId),
+      EmotionAnalysisService.analyzeEmotion(userMessage)
+    ]);
+
     if (!virtualHuman) {
       throw new Error('Virtual human not found');
     }
 
-    // 2. 分析用户情感
-    const userEmotion = await EmotionAnalysisService.analyzeEmotion(userMessage);
     console.log('User emotion detected:', userEmotion);
 
-    // 3. 获取智能上下文
-    const context = await ContextManagementService.getOptimizedContext(
-      virtualHumanId,
-      { maxMessages: 15 }
-    );
+    // 2. 并行获取智能上下文和检索相关记忆
+    const [context, memories] = await Promise.all([
+      ContextManagementService.getOptimizedContext(
+        virtualHumanId,
+        { maxMessages: 15 }
+      ),
+      MemoryManagementService.retrieveRelevantMemories(
+        virtualHumanId,
+        userMessage,
+        { limit: 5, minRelevanceScore: 0.3 }
+      )
+    ]);
 
-    // 4. 检索相关记忆
-    const memories = await MemoryManagementService.retrieveRelevantMemories(
-      virtualHumanId,
-      userMessage,
-      { limit: 5, minRelevanceScore: 0.3 }
-    );
-
-    // 5. 生成优化的提示词
+    // 3. 生成优化的提示词
     const promptTemplate = PromptOptimizationService.generateCompletePrompt({
       virtualHuman: {
         name: virtualHuman.name,
@@ -78,10 +90,10 @@ export class IntelligentConversationManager {
       emotion: userEmotion,
     });
 
-    // 6. 获取情感响应参数
+    // 4. 获取情感响应参数
     const aiParams = EmotionAnalysisService.getAIParameters(userEmotion);
 
-    // 7. 构建消息列表
+    // 5. 构建消息列表
     const messages = [
       {
         role: 'system' as const,
@@ -97,18 +109,18 @@ export class IntelligentConversationManager {
       },
     ];
 
-    // 8. 调用 AI（使用优化的参数）
+    // 6. 调用 AI（使用优化的参数）
     const aiResponse = await AIService.chat({
-      messages: messages as any,
+      messages: messages,
       personality: virtualHuman.personality,
       temperature: aiParams.temperature,
       maxTokens: aiParams.maxTokens,
     });
 
-    // 9. 提取新记忆（异步）
+    // 7. 提取新记忆（异步）
     this.extractAndSaveMemories(virtualHumanId, userMessage, aiResponse.content);
 
-    // 10. 返回响应
+    // 8. 返回响应
     return {
       content: aiResponse.content,
       emotion: aiResponse.emotion,
@@ -178,7 +190,7 @@ export class IntelligentConversationManager {
     const memoryStats = await MemoryManagementService.getMemoryStats(virtualHumanId);
 
     // 3. 情感趋势分析
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 100);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, 100);
     const emotions = messages
       .filter(m => m.emotion)
       .map(m => ({
@@ -232,7 +244,7 @@ export class IntelligentConversationManager {
     }
 
     // 3. 分析情感
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 50);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, 50);
     const emotions = messages
       .filter(m => m.emotion)
       .map(m => ({
@@ -260,7 +272,7 @@ export class IntelligentConversationManager {
     virtualHumanId: string,
     count: number = 3
   ): Promise<Array<{ user: string; assistant: string }>> {
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 100);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, 100);
 
     // 找出高质量的对话对
     const examples: Array<{ user: string; assistant: string }> = [];

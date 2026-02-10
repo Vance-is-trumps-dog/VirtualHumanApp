@@ -63,7 +63,8 @@ export class DataBackupService {
       return metadata;
     } catch (error) {
       console.error('Create backup error:', error);
-      throw new Error('创建备份失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`创建备份失败: ${msg}`);
     }
   }
 
@@ -106,7 +107,8 @@ export class DataBackupService {
       }
     } catch (error) {
       console.error('Restore backup error:', error);
-      throw new Error('恢复备份失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`恢复备份失败: ${msg}`);
     }
   }
 

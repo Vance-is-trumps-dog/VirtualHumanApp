@@ -2,9 +2,13 @@
  * 消息数据访问对象
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import Database from './index';
+import Database from '../services/DatabaseService';
 import { Message, ChatMode, MessageRole, Emotion } from '@types';
+
+// 简单的ID生成器
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+};
 
 /**
  * 数据库行类型（消息表）
@@ -42,7 +46,7 @@ export class MessageDAO {
     tokensUsed?: number;
     responseTime?: number;
   }): Promise<Message> {
-    const id = uuidv4();
+    const id = generateId();
     const now = Date.now();
 
     const message: Message = {

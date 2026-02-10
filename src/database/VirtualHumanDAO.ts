@@ -2,8 +2,7 @@
  * 虚拟人数据访问对象
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import Database from './index';
+import Database from '../services/DatabaseService';
 import {
   VirtualHuman,
   CreateVirtualHumanRequest,
@@ -11,6 +10,11 @@ import {
   ErrorCode,
 } from '@types';
 import { SqlParam } from '@utils/InputValidator';
+
+// 简单的ID生成器，替代uuid以避免crypto兼容性问题
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+};
 
 /**
  * 数据库行类型（虚拟人表）
@@ -47,8 +51,9 @@ export class VirtualHumanDAO {
    * 创建虚拟人
    */
   async create(data: CreateVirtualHumanRequest): Promise<VirtualHuman> {
+    console.log('DAO: create called', data);
     const now = Date.now();
-    const id = uuidv4();
+    const id = generateId();
 
     const virtualHuman: VirtualHuman = {
       id,
@@ -72,6 +77,7 @@ export class VirtualHumanDAO {
       status: 'active',
     };
 
+    console.log('DAO: executing SQL insert');
     await Database.executeSql(
       `INSERT INTO virtual_humans (
         id, name, age, gender, occupation, avatar_url, model_id, voice_id, outfit_id,
@@ -112,6 +118,22 @@ export class VirtualHumanDAO {
     const rows = await Database.executeSql<VirtualHumanRow>(
       'SELECT * FROM virtual_humans WHERE id = ?',
       [id]
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return this.mapRowToVirtualHuman(rows[0]);
+  }
+
+  /**
+   * 根据名称获取虚拟人
+   */
+  async getByName(name: string): Promise<VirtualHuman | null> {
+    const rows = await Database.executeSql<VirtualHumanRow>(
+      'SELECT * FROM virtual_humans WHERE name = ?',
+      [name]
     );
 
     if (rows.length === 0) {

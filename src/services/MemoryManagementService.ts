@@ -3,7 +3,7 @@
  * 优化记忆提取、整理和遗忘机制
  */
 
-import { MemoryDAO } from '@database/MemoryDAO';
+import MemoryDAO from '@database/MemoryDAO';
 import { Memory, MemoryCategory } from '@types';
 import AIService from './AIService';
 
@@ -28,10 +28,10 @@ export class MemoryManagementService {
     const keywords = await this.extractKeywords(currentMessage);
 
     // 2. 全文搜索
-    const searchResults = await MemoryDAO.searchMemories(
+    const searchResults = await MemoryDAO.retrieve(
       virtualHumanId,
       keywords.join(' '),
-      { limit: limit * 2 }
+      limit * 2
     );
 
     // 3. 计算相关性分数
@@ -59,18 +59,51 @@ export class MemoryManagementService {
 
   /**
    * 从对话中提取关键词
+   * 增强了对中文分词的支持（Bi-gram策略）
    */
   private async extractKeywords(text: string): Promise<string[]> {
-    // 简单的关键词提取（实际可以用 NLP 库）
-    const words = text
+    // 1. 标准分词（针对空格分隔的语言，如英语）
+    const standardWords = text
       .toLowerCase()
-      .replace(/[^\u4e00-\u9fa5a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 1);
+      .split(/[\s,.!?;:()\[\]{}\"\'`~@#$%^&*_\-+=<>\/\\|]+/)
+      .filter(w => !/[\u4e00-\u9fa5]/.test(w)); // 过滤掉包含中文字符的部分，后续单独处理
 
-    // 去除停用词
-    const stopWords = ['的', '了', '是', '在', '我', '你', '他', '她', '它', '们', '这', '那', '有', '和', '就', '不', '人', '都', '一', '为'];
-    return words.filter(w => !stopWords.includes(w));
+    // 2. 中文 Bi-gram (二元分词) 生成
+    // 提取所有连续的中文字符串
+    const cjkParts = text.match(/[\u4e00-\u9fa5]+/g) || [];
+    const biGrams: string[] = [];
+
+    for (const part of cjkParts) {
+      // 只有1个字时，保留该字
+      if (part.length === 1) {
+        biGrams.push(part);
+        continue;
+      }
+
+      // 生成二元组 (e.g., "我喜欢" -> "我喜", "喜欢")
+      for (let i = 0; i < part.length - 1; i++) {
+        biGrams.push(part.substring(i, i + 2));
+      }
+
+      // 如果片段较短（<=4字），也保留完整片段作为关键词（e.g., "人工智能"）
+      if (part.length <= 4 && part.length > 1) {
+        biGrams.push(part);
+      }
+    }
+
+    const allKeywords = [...standardWords, ...biGrams];
+
+    // 3. 过滤停用词和无效词
+    const stopWords = new Set([
+      // 中文停用词
+      '的', '了', '是', '在', '我', '你', '他', '她', '它', '们', '这', '那', '有', '和', '就', '不', '人', '都', '一', '为', '之', '乎', '者', '也', '得',
+      // 英文停用词
+      'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but'
+    ]);
+
+    return [...new Set(allKeywords)].filter(w =>
+      w && w.trim().length >= 1 && !stopWords.has(w)
+    );
   }
 
   /**
@@ -153,12 +186,11 @@ AI：${aiResponse}
       const savedMemories: Memory[] = [];
       for (const memData of memories) {
         const memory = await MemoryDAO.create({
-          virtual_human_id: virtualHumanId,
+          virtualHumanId: virtualHumanId,
           category: memData.category,
-          content: memData.content,
-          context: `从对话中提取：用户说"${userMessage.substring(0, 50)}..."`,
+          key: memData.content.substring(0, 50),
+          value: memData.content,
           importance: memData.importance,
-          tags: this.extractTags(memData.content),
         });
         savedMemories.push(memory);
       }
@@ -212,7 +244,7 @@ AI：${aiResponse}
    * 记忆整理：合并相似记忆
    */
   async consolidateMemories(virtualHumanId: string): Promise<number> {
-    const allMemories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+    const allMemories = await MemoryDAO.getAll(virtualHumanId);
 
     let consolidated = 0;
 
@@ -292,7 +324,7 @@ AI：${aiResponse}
     const maxAge = options?.maxAge || 365; // 默认一年
     const minImportance = options?.minImportance || 2;
 
-    const allMemories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+    const allMemories = await MemoryDAO.getAll(virtualHumanId);
     const cutoffDate = Date.now() - maxAge * 24 * 60 * 60 * 1000;
 
     let forgotten = 0;
@@ -319,7 +351,7 @@ AI：${aiResponse}
     oldestMemory: Date | null;
     newestMemory: Date | null;
   }> {
-    const memories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+    const memories = await MemoryDAO.getAll(virtualHumanId);
 
     const stats = {
       total: memories.length,

@@ -3,7 +3,7 @@
  * 管理对话上下文，优化 token 使用
  */
 
-import { MessageDAO } from '@database/MessageDAO';
+import MessageDAO from '@database/MessageDAO';
 import { Message } from '@types';
 
 export interface ConversationContext {
@@ -34,7 +34,7 @@ export class ContextManagementService {
     const maxMessages = options?.maxMessages || 20;
 
     // 1. 获取最近的消息
-    const recentMessages = await MessageDAO.getByVirtualHuman(
+    const recentMessages = await MessageDAO.getChatHistory(
       virtualHumanId,
       maxMessages * 2 // 获取更多，稍后筛选
     );
@@ -154,7 +154,7 @@ export class ContextManagementService {
     virtualHumanId: string,
     windowSize: number = 10
   ): Promise<ConversationContext> {
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, windowSize);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, windowSize);
 
     const conversationMessages = messages
       .sort((a, b) => a.created_at - b.created_at)
@@ -190,7 +190,7 @@ export class ContextManagementService {
     const threshold = options?.similarityThreshold || 0.3;
 
     // 1. 获取所有历史消息
-    const allMessages = await MessageDAO.getByVirtualHuman(virtualHumanId, 50);
+    const allMessages = await MessageDAO.getChatHistory(virtualHumanId, 50);
 
     // 2. 计算每条消息与当前消息的相关性
     const scoredMessages = allMessages.map(msg => ({
@@ -251,7 +251,7 @@ export class ContextManagementService {
   async generateContextSummary(
     virtualHumanId: string
   ): Promise<string> {
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 100);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, 100);
 
     if (messages.length === 0) {
       return '暂无对话历史';
@@ -294,7 +294,7 @@ export class ContextManagementService {
     estimatedTotalTokens: number;
     conversationDays: number;
   }> {
-    const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 1000);
+    const messages = await MessageDAO.getChatHistory(virtualHumanId, 1000);
 
     if (messages.length === 0) {
       return {

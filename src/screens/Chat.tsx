@@ -17,11 +17,11 @@ import {
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useChatStore, useVirtualHumanStore, useSettingsStore } from '@store';
-import { MessageBubble, Loading, VoiceButton, AudioPlayer } from '@components';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import SpeechService from '@services/SpeechService';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { useChatStore, useVirtualHumanStore, useSettingsStore } from '../store';
+import { MessageBubble, Loading, VoiceButton, AudioPlayer } from '../components';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import SpeechService from '../services/SpeechService';
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Chat'>;
@@ -126,7 +126,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         }
       }
     } catch (error) {
-      Alert.alert('错误', '发送失败，请重试');
+      Alert.alert('错误', `发送失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

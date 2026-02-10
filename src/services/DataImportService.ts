@@ -121,12 +121,11 @@ export class DataImportService {
         for (const mem of data.memories) {
           try {
             await MemoryDAO.create({
-              virtual_human_id: virtualHumanId,
+              virtualHumanId: virtualHumanId,
               category: mem.category,
-              content: mem.content,
-              context: mem.context,
+              key: (mem as any).key || (mem as any).content?.substring(0, 20) || 'imported_memory',
+              value: (mem as any).value || (mem as any).content || '',
               importance: mem.importance,
-              tags: mem.tags,
             });
             result.statistics.memoriesImported++;
           } catch (error) {
@@ -368,12 +367,11 @@ export class DataImportService {
         for (const mem of data.memories) {
           try {
             await MemoryDAO.create({
-              virtual_human_id: targetVirtualHumanId,
+              virtualHumanId: targetVirtualHumanId,
               category: mem.category,
-              content: mem.content,
-              context: mem.context,
+              key: (mem as any).key || (mem as any).content?.substring(0, 20) || 'imported_memory',
+              value: (mem as any).value || (mem as any).content || '',
               importance: mem.importance,
-              tags: mem.tags,
             });
             result.statistics.memoriesImported++;
           } catch (error) {

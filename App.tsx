@@ -4,11 +4,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { StatusBar, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { RootNavigator } from '@navigation/RootNavigator';
-import { useSettingsStore } from '@store';
-import AppInitializer from '@utils/AppInitializer';
-import EnvironmentValidator from '@utils/EnvironmentValidator';
-import ErrorLogService from '@services/ErrorLogService';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { useSettingsStore } from './src/store';
+import AppInitializer from './src/utils/AppInitializer';
+import EnvironmentValidator from './src/utils/EnvironmentValidator';
+import ErrorLogService from './src/services/ErrorLogService';
 
 const App: React.FC = () => {
   const { loadSettings } = useSettingsStore();

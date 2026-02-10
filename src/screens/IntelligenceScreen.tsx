@@ -13,9 +13,9 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import IntelligentConversationManager from '@services/IntelligentConversationManager';
-import MemoryManagementService from '@services/MemoryManagementService';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import IntelligentConversationManager from '../services/IntelligentConversationManager';
+import MemoryManagementService from '../services/MemoryManagementService';
 
 interface IntelligenceScreenProps {
   virtualHumanId: string;
@@ -90,6 +90,49 @@ export const IntelligenceScreen: React.FC<IntelligenceScreenProps> = ({
     );
   };
 
+  // 辅助方法
+  const getCategoryName = (category: string): string => {
+    const names: Record<string, string> = {
+      basic_info: '基本信息',
+      preferences: '偏好',
+      experiences: '经历',
+      relationships: '关系',
+      other: '其他',
+    };
+    return names[category] || category;
+  };
+
+  const getEmotionName = (emotion: string): string => {
+    const names: Record<string, string> = {
+      neutral: '平静',
+      happy: '开心',
+      sad: '难过',
+      angry: '生气',
+      surprised: '惊讶',
+      thinking: '思考',
+      excited: '兴奋',
+    };
+    return names[emotion] || emotion;
+  };
+
+  const getTrendText = (trend: string): string => {
+    const texts: Record<string, string> = {
+      improving: '📈 向好',
+      declining: '📉 下降',
+      stable: '➡️ 稳定',
+    };
+    return texts[trend] || trend;
+  };
+
+  const getTrendColor = (trend: string): string => {
+    const colors: Record<string, string> = {
+      improving: Colors.light.success,
+      declining: Colors.light.error,
+      stable: Colors.light.text,
+    };
+    return colors[trend] || Colors.light.text;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -158,7 +201,7 @@ export const IntelligenceScreen: React.FC<IntelligenceScreenProps> = ({
               <Text style={styles.subTitle}>按类别：</Text>
               {Object.entries(analytics.memory.byCategory).map(([category, count]) => (
                 <View key={category} style={styles.categoryRow}>
-                  <Text style={styles.categoryLabel}>{this.getCategoryName(category as any)}：</Text>
+                  <Text style={styles.categoryLabel}>{getCategoryName(category as any)}：</Text>
                   <Text style={styles.categoryValue}>{count as number}</Text>
                 </View>
               ))}
@@ -181,7 +224,7 @@ export const IntelligenceScreen: React.FC<IntelligenceScreenProps> = ({
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>主导情绪：</Text>
             <Text style={styles.statValue}>
-              {this.getEmotionName(analytics.emotionTrend.dominantEmotion)}
+              {getEmotionName(analytics.emotionTrend.dominantEmotion)}
             </Text>
           </View>
           <View style={styles.statRow}>
@@ -194,9 +237,9 @@ export const IntelligenceScreen: React.FC<IntelligenceScreenProps> = ({
             <Text style={styles.statLabel}>趋势：</Text>
             <Text style={[
               styles.statValue,
-              { color: this.getTrendColor(analytics.emotionTrend.trend) }
+              { color: getTrendColor(analytics.emotionTrend.trend) }
             ]}>
-              {this.getTrendText(analytics.emotionTrend.trend)}
+              {getTrendText(analytics.emotionTrend.trend)}
             </Text>
           </View>
         </View>
@@ -218,48 +261,6 @@ export const IntelligenceScreen: React.FC<IntelligenceScreenProps> = ({
     </ScrollView>
   );
 
-  // 辅助方法
-  private getCategoryName(category: string): string {
-    const names: Record<string, string> = {
-      basic_info: '基本信息',
-      preferences: '偏好',
-      experiences: '经历',
-      relationships: '关系',
-      other: '其他',
-    };
-    return names[category] || category;
-  }
-
-  private getEmotionName(emotion: string): string {
-    const names: Record<string, string> = {
-      neutral: '平静',
-      happy: '开心',
-      sad: '难过',
-      angry: '生气',
-      surprised: '惊讶',
-      thinking: '思考',
-      excited: '兴奋',
-    };
-    return names[emotion] || emotion;
-  }
-
-  private getTrendText(trend: string): string {
-    const texts: Record<string, string> = {
-      improving: '📈 向好',
-      declining: '📉 下降',
-      stable: '➡️ 稳定',
-    };
-    return texts[trend] || trend;
-  }
-
-  private getTrendColor(trend: string): string {
-    const colors: Record<string, string> = {
-      improving: Colors.light.success,
-      declining: Colors.light.error,
-      stable: Colors.light.text,
-    };
-    return colors[trend] || Colors.light.text;
-  }
 };
 
 const styles = StyleSheet.create({
@@ -375,3 +376,5 @@ const styles = StyleSheet.create({
     height: Spacing.xl,
   },
 });
+
+export default IntelligenceScreen;

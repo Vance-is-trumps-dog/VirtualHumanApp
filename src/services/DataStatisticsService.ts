@@ -292,7 +292,7 @@ export class DataStatisticsService {
       };
 
       // 消息统计
-      const messages = await MessageDAO.getByVirtualHuman(virtualHumanId, 10000);
+      const messages = await MessageDAO.getChatHistory(virtualHumanId, 10000);
 
       stats.messages.total = messages.length;
       stats.messages.userMessages = messages.filter((m) => m.role === 'user').length;
@@ -363,7 +363,7 @@ export class DataStatisticsService {
       }
 
       // 记忆统计
-      const memories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+      const memories = await MemoryDAO.getAll(virtualHumanId);
       stats.memories.total = memories.length;
 
       if (memories.length > 0) {

@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useChatStore, useVirtualHumanStore, useSettingsStore } from '@store';
-import { UnityViewComponent } from '@components/UnityView';
-import { VoiceButton, Loading } from '@components';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import UnityBridge from '@services/UnityBridge';
-import SpeechService from '@services/SpeechService';
-import { Emotion } from '@types';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { useChatStore, useVirtualHumanStore, useSettingsStore } from '../store';
+import { UnityViewComponent } from '../components/UnityView';
+import { VoiceButton, Loading } from '../components';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import UnityBridge from '../services/UnityBridge';
+import SpeechService from '../services/SpeechService';
+import { Emotion } from '../types';
 
 type VideoChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type VideoChatScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Chat'>;

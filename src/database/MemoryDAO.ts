@@ -2,10 +2,14 @@
  * 记忆数据访问对象
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import Database from './index';
+import Database from '../services/DatabaseService';
 import { Memory, MemoryCategory } from '@types';
 import { SqlParam } from '@utils/InputValidator';
+
+// 简单的ID生成器
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+};
 
 /**
  * 数据库行类型（记忆表）
@@ -37,7 +41,7 @@ export class MemoryDAO {
     sourceMessageId?: string;
     expiresAt?: number;
   }): Promise<Memory> {
-    const id = uuidv4();
+    const id = generateId();
     const now = Date.now();
 
     const memory: Memory = {

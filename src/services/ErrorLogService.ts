@@ -30,6 +30,14 @@ export class ErrorLogService {
   private readonly LOG_STORAGE_KEY = 'app_logs';
 
   /**
+   * 初始化服务
+   */
+  async init(): Promise<void> {
+    await this.ensureLogDir();
+    this.setupGlobalErrorHandler();
+  }
+
+  /**
    * 记录日志
    */
   log(
@@ -346,9 +354,10 @@ export class ErrorLogService {
   setupGlobalErrorHandler(): void {
     // 捕获未处理的 Promise 拒绝
     const originalPromiseRejection = global.Promise.prototype.catch;
+    const self = this; // 保存 this 引用
     global.Promise.prototype.catch = function (onRejected) {
       return originalPromiseRejection.call(this, (error) => {
-        ErrorLogService.error(
+        self.error(
           'Unhandled Promise Rejection',
           error,
           'Promise'
@@ -365,7 +374,7 @@ export class ErrorLogService {
       const originalHandler = ErrorUtils.getGlobalHandler();
 
       ErrorUtils.setGlobalHandler((error, isFatal) => {
-        ErrorLogService.fatal(
+        self.fatal(
           isFatal ? 'Fatal Error' : 'Unhandled Error',
           error,
           'Global'

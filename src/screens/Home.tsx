@@ -1,87 +1,104 @@
-/**
- * 首页 - 虚拟人列表
- */
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
-  FlatList,
+  Text,
   StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
   SafeAreaView,
+  StatusBar,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useVirtualHumanStore } from '@store';
-import { VirtualHumanCard, EmptyState, Loading, Button } from '@components';
-import { Colors, Spacing } from '@constants';
-import { VirtualHuman } from '@types';
+import { RootStackParamList, VirtualHuman } from '@types';
+import VirtualHumanDAO from '@database/VirtualHumanDAO';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Main'>;
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps {
-  navigation: HomeScreenNavigationProp;
-}
+const HomeScreen = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const [virtualHumans, setVirtualHumans] = useState<VirtualHuman[]>([]);
+  const [loading, setLoading] = useState(false);
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const {
-    virtualHumans,
-    loading,
-    loadVirtualHumans,
-  } = useVirtualHumanStore();
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await VirtualHumanDAO.getAll();
+      setVirtualHumans(data);
+    } catch (error) {
+      console.error('Failed to load virtual humans:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    loadVirtualHumans();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
-  const handleCreateNew = () => {
-    navigation.navigate('CreateVirtualHuman');
-  };
-
-  const handleCardPress = (virtualHuman: VirtualHuman) => {
-    navigation.navigate('Chat', { virtualHumanId: virtualHuman.id });
-  };
-
-  const handleCardLongPress = (virtualHuman: VirtualHuman) => {
-    navigation.navigate('VirtualHumanDetail', { virtualHumanId: virtualHuman.id });
-  };
-
-  if (loading && virtualHumans.length === 0) {
-    return <Loading fullScreen message="加载中..." />;
-  }
+  const renderItem = ({ item }: { item: VirtualHuman }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => navigation.navigate('Chat', { virtualHumanId: item.id })}
+    >
+      <View style={styles.avatarContainer}>
+        {item.avatar ? (
+          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.defaultAvatar]}>
+            <Text style={styles.avatarText}>{item.name.substring(0, 1)}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.infoContainer}>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.description} numberOfLines={2}>
+          {item.personality.description || '暂无描述'}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => navigation.navigate('VirtualHumanDetail', { virtualHumanId: item.id })}
+      >
+        <Icon name="settings" size={24} color="#999" />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 头部按钮 */}
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       <View style={styles.header}>
-        <Button
-          title="+ 新建虚拟人"
-          onPress={handleCreateNew}
-          variant="primary"
-          fullWidth
-        />
+        <Text style={styles.title}>我的虚拟人</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('CreateVirtualHuman')}
+        >
+          <Icon name="add" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {/* 虚拟人列表 */}
-      {virtualHumans.length === 0 ? (
-        <EmptyState
-          title="还没有虚拟人"
-          message="创建你的第一个虚拟人，开始有趣的对话吧！"
-          actionTitle="立即创建"
-          onAction={handleCreateNew}
-        />
+      {virtualHumans.length === 0 && !loading ? (
+        <View style={styles.emptyContainer}>
+          <Icon name="person-outline" size={80} color="#ccc" />
+          <Text style={styles.emptyText}>还没有虚拟人</Text>
+          <Text style={styles.emptySubText}>点击右上角 + 创建你的第一个虚拟伙伴</Text>
+        </View>
       ) : (
         <FlatList
           data={virtualHumans}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <VirtualHumanCard
-              virtualHuman={item}
-              onPress={() => handleCardPress(item)}
-              onLongPress={() => handleCardLongPress(item)}
-            />
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={loadData} />
+          }
         />
       )}
     </SafeAreaView>
@@ -91,18 +108,93 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#f5f5f5',
   },
-
   header: {
-    padding: Spacing.md,
-    backgroundColor: Colors.light.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    elevation: 2,
   },
-
-  list: {
-    padding: Spacing.md,
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
+    backgroundColor: '#6200ee',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+  },
+  listContainer: {
+    padding: 16,
+  },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    elevation: 2,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    marginRight: 16,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  defaultAvatar: {
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#757575',
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 14,
+    color: '#666',
+  },
+  settingsButton: {
+    padding: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 

@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '@navigation/RootNavigator';
-import { useVirtualHumanStore } from '@store';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import { VirtualHuman } from '@types';
-import { Button, Loading } from '@components';
+import { RootStackParamList } from '../navigation/RootNavigator';
+import { useVirtualHumanStore } from '../store';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import { VirtualHuman } from '../types';
+import { Button, Loading } from '../components';
 
 type VirtualHumanDetailScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -231,18 +231,6 @@ export const VirtualHumanDetailScreen: React.FC<
       <View style={styles.bottomSpacer} />
     </ScrollView>
   );
-
-  // 辅助方法
-  private getTraitLabel(key: string): string {
-    const labels: Record<string, string> = {
-      extroversion: '外向程度',
-      rationality: '理性程度',
-      seriousness: '严肃程度',
-      openness: '开放程度',
-      gentleness: '温和程度',
-    };
-    return labels[key] || key;
-  }
 };
 
 const styles = StyleSheet.create({

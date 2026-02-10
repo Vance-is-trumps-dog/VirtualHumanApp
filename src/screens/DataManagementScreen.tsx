@@ -13,11 +13,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import DataExportService from '@services/DataExportService';
-import DataImportService from '@services/DataImportService';
-import DataBackupService, { BackupMetadata } from '@services/DataBackupService';
-import DataStatisticsService from '@services/DataStatisticsService';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import DataExportService from '../services/DataExportService';
+import DataImportService from '../services/DataImportService';
+import DataBackupService, { BackupMetadata } from '../services/DataBackupService';
+import DataStatisticsService from '../services/DataStatisticsService';
 
 interface DataManagementScreenProps {
   virtualHumanId?: string; // 如果提供，则显示单个虚拟人的管理；否则显示全局管理
@@ -520,3 +520,5 @@ const styles = StyleSheet.create({
     height: Spacing.xl,
   },
 });
+
+export default DataManagementScreen;

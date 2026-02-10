@@ -69,7 +69,7 @@ export class DataExportService {
 
       // 3. 导出消息（如果需要）
       if (includeMessages) {
-        const messages = await MessageDAO.getByVirtualHuman(
+        const messages = await MessageDAO.getChatHistory(
           virtualHumanId,
           messageLimit
         );
@@ -89,7 +89,7 @@ export class DataExportService {
 
       // 4. 导出记忆（如果需要）
       if (includeMemories) {
-        const memories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+        const memories = await MemoryDAO.getAll(virtualHumanId);
         exportData.memories = memories;
         exportData.statistics.totalMemories = memories.length;
       }
@@ -110,7 +110,8 @@ export class DataExportService {
       return filePath;
     } catch (error) {
       console.error('Export error:', error);
-      throw new Error('导出失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`导出失败: ${msg}`);
     }
   }
 
@@ -253,7 +254,7 @@ export class DataExportService {
     };
 
     if (options.includeMessages) {
-      const messages = await MessageDAO.getByVirtualHuman(
+      const messages = await MessageDAO.getChatHistory(
         virtualHumanId,
         options.messageLimit || 1000
       );
@@ -262,7 +263,7 @@ export class DataExportService {
     }
 
     if (options.includeMemories) {
-      const memories = await MemoryDAO.getByVirtualHuman(virtualHumanId);
+      const memories = await MemoryDAO.getAll(virtualHumanId);
       exportData.memories = memories;
       exportData.statistics.totalMemories = memories.length;
     }

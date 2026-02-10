@@ -3,11 +3,8 @@
  * 确保所有必需的环境变量在应用启动时都已正确配置
  */
 
-interface RequiredEnvVars {
-  OPENAI_API_KEY: string;
-  AZURE_SPEECH_KEY: string;
-  AZURE_SPEECH_REGION: string;
-}
+// @ts-ignore
+import { OPENAI_API_KEY, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION } from '@env';
 
 export interface ValidationResult {
   valid: boolean;
@@ -16,12 +13,6 @@ export interface ValidationResult {
 }
 
 export class EnvironmentValidator {
-  private static requiredVars: (keyof RequiredEnvVars)[] = [
-    'OPENAI_API_KEY',
-    'AZURE_SPEECH_KEY',
-    'AZURE_SPEECH_REGION',
-  ];
-
   /**
    * 验证环境变量
    */
@@ -29,26 +20,32 @@ export class EnvironmentValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    this.requiredVars.forEach((varName) => {
-      const value = process.env[varName];
+    // 显式构建配置对象，避免动态读取 process.env 导致 react-native-dotenv 失效
+    const config = {
+      OPENAI_API_KEY,
+      AZURE_SPEECH_KEY,
+      AZURE_SPEECH_REGION
+    };
 
-      // 检查是否存在
-      if (!value || value.trim() === '') {
-        errors.push(`${varName} is not configured`);
-        return;
-      }
+    // 验证 OpenAI Key
+    if (!config.OPENAI_API_KEY || config.OPENAI_API_KEY.trim() === '') {
+      errors.push('OPENAI_API_KEY is not configured');
+    } else if (config.OPENAI_API_KEY.includes('placeholder')) {
+      // 允许 placeholder 用于测试启动，但给予警告
+      warnings.push('OPENAI_API_KEY is using a placeholder value');
+    }
 
-      // 检查是否是占位符
-      if (value.includes('your-') || value.includes('YOUR_')) {
-        errors.push(`${varName} contains placeholder value: "${value}"`);
-        return;
-      }
+    // 验证 Azure Speech Key
+    if (!config.AZURE_SPEECH_KEY || config.AZURE_SPEECH_KEY.trim() === '') {
+      errors.push('AZURE_SPEECH_KEY is not configured');
+    } else if (config.AZURE_SPEECH_KEY.includes('placeholder')) {
+      warnings.push('AZURE_SPEECH_KEY is using a placeholder value');
+    }
 
-      // 检查密钥长度（基本验证）
-      if (varName.includes('KEY') && value.length < 10) {
-        warnings.push(`${varName} seems too short (${value.length} chars), may be invalid`);
-      }
-    });
+    // 验证 Azure Region
+    if (!config.AZURE_SPEECH_REGION || config.AZURE_SPEECH_REGION.trim() === '') {
+      errors.push('AZURE_SPEECH_REGION is not configured');
+    }
 
     return {
       valid: errors.length === 0,
@@ -82,32 +79,6 @@ export class EnvironmentValidator {
       console.warn('⚠️  Environment warnings:');
       warnings.forEach((w) => console.warn(`  - ${w}`));
     }
-  }
-
-  /**
-   * 获取验证状态报告
-   */
-  static getReport(): string {
-    const { valid, errors, warnings } = this.validate();
-
-    const lines: string[] = ['=== Environment Validation Report ===', ''];
-
-    if (valid) {
-      lines.push('✅ All required environment variables are configured');
-    } else {
-      lines.push('❌ Environment validation failed');
-      lines.push('');
-      lines.push('Errors:');
-      errors.forEach((e) => lines.push(`  - ${e}`));
-    }
-
-    if (warnings.length > 0) {
-      lines.push('');
-      lines.push('Warnings:');
-      warnings.forEach((w) => lines.push(`  - ${w}`));
-    }
-
-    return lines.join('\n');
   }
 }
 

@@ -14,11 +14,11 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@constants';
-import ConfigService, { AppConfig } from '@services/ConfigService';
-import ErrorLogService from '@services/ErrorLogService';
-import PerformanceMonitorService from '@services/PerformanceMonitorService';
-import DataBackupService from '@services/DataBackupService';
+import { Colors, Spacing, FontSizes, BorderRadius } from '../constants';
+import ConfigService, { AppConfig } from '../services/ConfigService';
+import ErrorLogService from '../services/ErrorLogService';
+import PerformanceMonitorService from '../services/PerformanceMonitorService';
+import DataBackupService from '../services/DataBackupService';
 
 export const SettingsScreen: React.FC = () => {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -410,3 +410,5 @@ const styles = StyleSheet.create({
     height: Spacing.xl,
   },
 });
+
+export default SettingsScreen;
