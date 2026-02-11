@@ -48,90 +48,107 @@ export class IntelligentConversationManager {
   async processConversation(
     request: IntelligentChatRequest
   ): Promise<IntelligentChatResponse> {
-    const { virtualHumanId, userMessage } = request;
+    try {
+      const { virtualHumanId, userMessage } = request;
 
-    // 1. 并行获取虚拟人信息和分析用户情感 (降低延迟)
-    const [virtualHuman, userEmotion] = await Promise.all([
-      VirtualHumanDAO.getById(virtualHumanId),
-      EmotionAnalysisService.analyzeEmotion(userMessage)
-    ]);
+      // 1. 并行获取虚拟人信息和分析用户情感 (降低延迟)
+      const [virtualHuman, userEmotion] = await Promise.all([
+        VirtualHumanDAO.getById(virtualHumanId),
+        EmotionAnalysisService.analyzeEmotion(userMessage)
+      ]);
 
-    if (!virtualHuman) {
-      throw new Error('Virtual human not found');
-    }
+      if (!virtualHuman) {
+        throw new Error('Virtual human not found');
+      }
 
-    console.log('User emotion detected:', userEmotion);
+      console.log('User emotion detected:', userEmotion);
 
-    // 2. 并行获取智能上下文和检索相关记忆
-    const [context, memories] = await Promise.all([
-      ContextManagementService.getOptimizedContext(
-        virtualHumanId,
-        { maxMessages: 15 }
-      ),
-      MemoryManagementService.retrieveRelevantMemories(
-        virtualHumanId,
-        userMessage,
-        { limit: 5, minRelevanceScore: 0.3 }
-      )
-    ]);
+      // 2. 并行获取智能上下文和检索相关记忆
+      const [context, memories] = await Promise.all([
+        ContextManagementService.getOptimizedContext(
+          virtualHumanId,
+          { maxMessages: 15 }
+        ),
+        MemoryManagementService.retrieveRelevantMemories(
+          virtualHumanId,
+          userMessage,
+          { limit: 5, minRelevanceScore: 0.3 }
+        )
+      ]);
 
-    // 3. 生成优化的提示词
-    const promptTemplate = PromptOptimizationService.generateCompletePrompt({
-      virtualHuman: {
-        name: virtualHuman.name,
-        age: virtualHuman.age,
-        gender: virtualHuman.gender,
-        occupation: virtualHuman.occupation,
+      // 3. 生成优化的提示词
+      const promptTemplate = PromptOptimizationService.generateCompletePrompt({
+        virtualHuman: {
+          name: virtualHuman.name,
+          age: virtualHuman.age,
+          gender: virtualHuman.gender,
+          occupation: virtualHuman.occupation,
+          personality: virtualHuman.personality,
+          backgroundStory: virtualHuman.backgroundStory,
+          experiences: [], // 可以从数据库获取
+        },
+        memories,
+        emotion: userEmotion,
+      });
+
+      // 4. 获取情感响应参数
+      const aiParams = EmotionAnalysisService.getAIParameters(userEmotion);
+
+      // 5. 构建消息列表
+      const messages = [
+        {
+          role: 'system' as const,
+          content: promptTemplate.system,
+        },
+        ...context.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        {
+          role: 'user' as const,
+          content: userMessage,
+        },
+      ];
+
+      // 6. 调用 AI（使用优化的参数）
+      const aiResponse = await AIService.chat({
+        messages: messages,
         personality: virtualHuman.personality,
-        backgroundStory: virtualHuman.backgroundStory,
-        experiences: [], // 可以从数据库获取
-      },
-      memories,
-      emotion: userEmotion,
-    });
+        temperature: aiParams.temperature,
+        maxTokens: aiParams.maxTokens,
+      });
 
-    // 4. 获取情感响应参数
-    const aiParams = EmotionAnalysisService.getAIParameters(userEmotion);
+      // 7. 提取新记忆（异步）
+      this.extractAndSaveMemories(virtualHumanId, userMessage, aiResponse.content);
 
-    // 5. 构建消息列表
-    const messages = [
-      {
-        role: 'system' as const,
-        content: promptTemplate.system,
-      },
-      ...context.messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      })),
-      {
-        role: 'user' as const,
-        content: userMessage,
-      },
-    ];
+      // 8. 返回响应
+      return {
+        content: aiResponse.content,
+        emotion: aiResponse.emotion,
+        tokensUsed: aiResponse.tokensUsed,
+        metadata: {
+          memoriesUsed: memories.length,
+          contextMessages: context.messages.length,
+          userEmotionDetected: `${userEmotion.primary} (${(userEmotion.confidence * 100).toFixed(0)}%)`,
+          responseStyle: aiParams.styleHint,
+        },
+      };
+    } catch (error: any) {
+      console.error('IntelligentConversationManager Error:', error);
 
-    // 6. 调用 AI（使用优化的参数）
-    const aiResponse = await AIService.chat({
-      messages: messages,
-      personality: virtualHuman.personality,
-      temperature: aiParams.temperature,
-      maxTokens: aiParams.maxTokens,
-    });
-
-    // 7. 提取新记忆（异步）
-    this.extractAndSaveMemories(virtualHumanId, userMessage, aiResponse.content);
-
-    // 8. 返回响应
-    return {
-      content: aiResponse.content,
-      emotion: aiResponse.emotion,
-      tokensUsed: aiResponse.tokensUsed,
-      metadata: {
-        memoriesUsed: memories.length,
-        contextMessages: context.messages.length,
-        userEmotionDetected: `${userEmotion.primary} (${(userEmotion.confidence * 100).toFixed(0)}%)`,
-        responseStyle: aiParams.styleHint,
-      },
-    };
+      // 错误处理：返回友好的错误提示，防止 UI 卡死
+      return {
+        content: `[系统提示] 暂时无法连接到 AI 服务。请检查电脑端服务是否启动 (端口 3000)，或尝试运行 "adb reverse tcp:3000 tcp:3000"。\n\n技术详情: ${error.message || '网络连接异常'}`,
+        emotion: 'neutral',
+        tokensUsed: 0,
+        metadata: {
+          memoriesUsed: 0,
+          contextMessages: 0,
+          userEmotionDetected: 'unknown',
+          responseStyle: 'error_fallback',
+        },
+      };
+    }
   }
 
   /**

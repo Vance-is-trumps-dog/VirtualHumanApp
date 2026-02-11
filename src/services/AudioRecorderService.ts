@@ -94,6 +94,20 @@ export class AudioRecorderService {
   }
 
   /**
+   * 开始录音 (别名，兼容 startRecorder 调用)
+   */
+  async startRecorder(onProgress?: (data: { currentMetering: number; currentPosition: number }) => void): Promise<void> {
+    return this.startRecording(onProgress);
+  }
+
+  /**
+   * 停止录音 (别名，兼容 stopRecorder 调用)
+   */
+  async stopRecorder(): Promise<string> {
+    return this.stopRecording();
+  }
+
+  /**
    * 取消录音
    */
   async cancelRecording(): Promise<void> {

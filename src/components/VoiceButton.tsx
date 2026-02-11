@@ -28,6 +28,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const recordingPath = useRef<string>('');
+  const startRecordingPromise = useRef<Promise<void> | null>(null);
 
   const handlePressIn = async () => {
     if (disabled || isProcessing) return;
@@ -42,7 +43,8 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
       }).start();
 
       // 开始录音
-      await AudioRecorderService.startRecording();
+      startRecordingPromise.current = AudioRecorderService.startRecording();
+      await startRecordingPromise.current;
     } catch (error) {
       console.error('Start recording failed:', error);
       setIsRecording(false);
@@ -54,6 +56,11 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({
     if (!isRecording) return;
 
     try {
+      // 确保开始录音已经完成
+      if (startRecordingPromise.current) {
+        await startRecordingPromise.current;
+      }
+
       setIsRecording(false);
       setIsProcessing(true);
 

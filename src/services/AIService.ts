@@ -2,6 +2,7 @@
  * AI对话服务
  */
 
+import { Alert } from 'react-native';
 import axios, { AxiosInstance } from 'axios';
 import {
   OPENAI_API_KEY as ENV_API_KEY,
@@ -20,8 +21,12 @@ export class AIService {
     this.model = OPENAI_MODEL || 'gpt-4-turbo';
 
     // 初始化 Axios 实例
+    // [修复] 回退到 .tech 域名，因为之前验证它可以连接（报401说明网络通了）
+    const forcedBaseURL = 'https://api.chatanywhere.tech/v1';
+    console.log('🔌 AIService initialized with forced BaseURL:', forcedBaseURL);
+
     this.client = axios.create({
-      baseURL: ENV_BASE_URL || 'https://api.chatanywhere.com.cn/v1',
+      baseURL: forcedBaseURL,
       timeout: 60000,
       headers: {
         'Content-Type': 'application/json',
@@ -104,22 +109,64 @@ export class AIService {
     }
 
     try {
-      const response = await this.client.post('/chat/completions', {
-        model: this.model,
-        messages: apiMessages,
-        temperature: temperature || 0.8,
-        max_tokens: maxTokens || 500,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.3,
+      // [新增] 联网自检：先尝试连接百度，确认手机是否有网
+      try {
+        console.log('🌐 正在检查网络连接 (ping baidu.com)...');
+        const ping = await fetch('https://www.baidu.com', { method: 'HEAD' });
+        console.log('✅ 网络连接正常，状态码:', ping.status);
+      } catch (pingError) {
+        console.error('❌ 无法连接互联网:', pingError);
+        throw new AppError(ErrorCode.NETWORK_ERROR, '手机无法连接互联网，请检查 Wifi 或数据网络');
+      }
+
+      console.log('🚀 正在通过 fetch 发起 AI 请求...');
+
+      // 1. 优先尝试从 ConfigService 获取动态配置
+      let apiKey = ConfigService.getApiKey('openai');
+      // 2. 如果没有动态配置，降级使用环境变量
+      if (!apiKey) {
+        apiKey = ENV_API_KEY;
+      }
+
+      // 3. 如果还是没有，抛出错误
+      if (!apiKey || apiKey.trim() === '') {
+         throw new AppError(
+           ErrorCode.CONFIGURATION_ERROR,
+           'OpenAI API Key 未配置，请在设置中输入'
+         );
+      }
+
+      const response = await fetch('https://api.chatanywhere.com.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: apiMessages,
+          temperature: temperature || 0.8,
+          max_tokens: maxTokens || 500,
+          presence_penalty: 0.6,
+          frequency_penalty: 0.3,
+        })
       });
 
-      const content = response.data.choices[0].message.content;
-      const tokensUsed = response.data.usage.total_tokens;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API 请求失败:', response.status, errorText);
+        throw new Error(`API Error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      const tokensUsed = data.usage.total_tokens;
       const emotion = this.detectEmotion(content);
 
       return { content, emotion, tokensUsed };
     } catch (error: any) {
-      this.handleError(error);
+      console.error('❌ AI Service Error (Fetch):', error);
+      Alert.alert('AI请求失败', String(error));
       throw error;
     }
   }
@@ -158,17 +205,48 @@ export class AIService {
   }
 
   private handleError(error: any): void {
-    console.error('AI Service Error:', error);
+    console.group('🚨 AI Service Error Diagnostic Report');
+
+    // [新增] 屏幕弹窗调试信息
     if (axios.isAxiosError(error)) {
+        const debugInfo = `URL: ${error.config?.baseURL}${error.config?.url}\nStatus: ${error.response?.status || '无响应'}\nCode: ${error.code || '未知'}\nMsg: ${error.message}`;
+        Alert.alert('AI请求失败调试', debugInfo);
+    } else {
+        Alert.alert('AI请求未知错误', String(error));
+    }
+
+    if (axios.isAxiosError(error)) {
+        console.log('📍 Request Endpoint:', error.config?.baseURL, error.config?.url);
+        console.log('📤 Request Headers:', JSON.stringify(error.config?.headers, null, 2));
+        console.log('📦 Request Data:', JSON.stringify(error.config?.data, null, 2));
+
+        if (error.response) {
+            console.log('📥 Response Status:', error.response.status);
+            console.log('📄 Response Data:', JSON.stringify(error.response.data, null, 2));
+        } else if (error.request) {
+            console.log('⚠️ No Response Received (Network/Timeout)');
+            console.log('Request Object:', error.request);
+        } else {
+            console.log('❌ Error Message:', error.message);
+        }
+        console.log('🔧 Full Error Config:', JSON.stringify(error.toJSON(), null, 2));
+
         if (error.code === 'ECONNABORTED') {
+            console.groupEnd();
             throw new AppError(ErrorCode.AI_SERVICE_ERROR, '请求超时，请检查网络');
         }
         if (error.message === 'Network Error') {
+            console.groupEnd();
             throw new AppError(ErrorCode.NETWORK_ERROR, '网络连接失败，请检查VPN或代理设置');
         }
         const msg = error.response?.data?.error?.message || error.message;
+        console.groupEnd();
         throw new AppError(ErrorCode.AI_SERVICE_ERROR, `服务请求失败: ${msg}`);
     }
+
+    console.error('Unknown Error:', error);
+    console.groupEnd();
+
     // 如果是配置错误，直接抛出
     if (error instanceof AppError) {
         throw error;
