@@ -55,7 +55,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         virtualHumanId: virtualHumanId,
         role: 'assistant',
         content: aiRes.content,
-        mode: 'text',
+        mode: aiRes.audioUrl ? 'voice' : 'text',
+        audioUrl: aiRes.audioUrl,
         emotion: aiRes.emotion
       });
 

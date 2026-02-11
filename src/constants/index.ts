@@ -154,46 +154,7 @@ export const VIRTUAL_HUMAN_TEMPLATES = [
   },
 ];
 
-// ==================== 内置音色 ====================
-
-export const BUILTIN_VOICES = [
-  {
-    id: 'zh-CN-XiaoxiaoNeural',
-    name: 'Xiaoxiao',
-    displayName: '晓晓',
-    locale: 'zh-CN',
-    gender: 'female' as const,
-    description: '甜美女声，适合年轻女性角色',
-    styles: ['cheerful', 'sad', 'angry', 'fearful'],
-  },
-  {
-    id: 'zh-CN-YunxiNeural',
-    name: 'Yunxi',
-    displayName: '云希',
-    locale: 'zh-CN',
-    gender: 'male' as const,
-    description: '温和男声，适合成熟男性角色',
-    styles: ['cheerful', 'sad', 'angry', 'fearful'],
-  },
-  {
-    id: 'zh-CN-XiaoyiNeural',
-    name: 'Xiaoyi',
-    displayName: '晓伊',
-    locale: 'zh-CN',
-    gender: 'female' as const,
-    description: '温柔女声，适合温和角色',
-    styles: ['gentle', 'cheerful'],
-  },
-  {
-    id: 'zh-CN-YunjianNeural',
-    name: 'Yunjian',
-    displayName: '云健',
-    locale: 'zh-CN',
-    gender: 'male' as const,
-    description: '活力男声，适合阳光角色',
-    styles: ['cheerful', 'excited'],
-  },
-];
+export * from './voices';
 
 // ==================== 3D模型 ====================
 

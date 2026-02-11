@@ -86,45 +86,173 @@ export class SpeechService {
 
   /**
    * 文字转语音 (Azure TTS REST API)
+   * @param text 要合成的文本
+   * @param options 合成选项
    */
-  async textToSpeech(text: string, voiceId: string = 'zh-CN-XiaoxiaoNeural', speed: number = 1.0): Promise<string> {
+  async textToSpeech(
+    text: string,
+    options: {
+      voiceId?: string;
+      style?: string; // chat, cheerful, sad, etc.
+      speed?: number; // 0.5 - 2.0
+      pitch?: string; // default, high, low
+    } = {}
+  ): Promise<string> {
     try {
-      console.log('🗣️ TTS Requesting (Azure):', text.substring(0, 20) + '...');
+      const {
+        voiceId = 'zh-CN-XiaoxiaoNeural',
+        style = 'chat',
+        speed = 1.0,
+        pitch = 'default'
+      } = options;
+
+      console.log(`🗣️ TTS Requesting (Azure): [${voiceId}] ${text.substring(0, 20)}...`);
       const { apiKey, region } = this.getAzureCredentials();
 
       const fileName = `tts_${Date.now()}.mp3`;
       const destPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
 
-      // 构建 SSML
-      const ssml = `
-        <speak version='1.0' xml:lang='zh-CN'>
-          <voice xml:lang='zh-CN' xml:gender='Female' name='${voiceId}'>
-            ${text}
-          </voice>
-        </speak>
+      // 语速转换
+      const ratePct = Math.round((speed - 1.0) * 100);
+      const rateStr = ratePct >= 0 ? `+${ratePct}%` : `${ratePct}%`;
+
+      // 某些语音可能不支持 style，简单列表判断（实际应从 API 获取）
+      // 晓晓、云希等通常支持 style，但为了稳健，如果 style 为 'chat' 且是默认情况，可以简化 SSML
+
+      const ssmlContent = `
+        <prosody rate="${rateStr}" pitch="${pitch}">
+          ${text}
+        </prosody>
       `;
 
-      const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+      // 只有在明确指定了非默认 style 时才包裹 express-as
+      // 且只对支持的中文语音添加
+      const supportsStyle = ['zh-CN-XiaoxiaoNeural', 'zh-CN-YunxiNeural', 'zh-CN-XiaoyiNeural', 'zh-CN-YunyangNeural', 'zh-CN-XiaomengNeural', 'zh-CN-YunjianNeural'].includes(voiceId);
 
-      const options = {
-        fromUrl: url,
-        toFile: destPath,
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': apiKey,
-          'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-          'Content-Type': 'application/ssml+xml',
-          'User-Agent': 'VirtualHumanApp'
-        },
-        body: ssml,
+      let innerSSML = ssmlContent;
+      if (supportsStyle && style && style !== 'default') {
+          innerSSML = `
+            <mstts:express-as style="${style}">
+              ${ssmlContent}
+            </mstts:express-as>
+          `;
+      }
+
+      // 构建完整 SSML 的辅助函数
+      const buildSSML = (targetVoiceId: string, useStyle: boolean, useProsody: boolean = true) => {
+        let content = text;
+
+        // 1. 包裹语速/音调 (Prosody)
+        if (useProsody) {
+          content = `
+            <prosody rate="${rateStr}" pitch="${pitch}">
+              ${content}
+            </prosody>
+          `;
+        }
+
+        // 2. 包裹情感风格 (Style)
+        // 只有在明确指定了非默认 style，且支持 style，且当前尝试启用 style 时才包裹
+        if (useStyle && supportsStyle && style && style !== 'default') {
+          content = `
+            <mstts:express-as style="${style}">
+              ${content}
+            </mstts:express-as>
+          `;
+        }
+
+        // 3. 构建 Speak/Voice 标签
+        // 移除 xml:gender 避免与 voiceId 性别不符导致的问题
+        return `
+          <speak version='1.0' xml:lang='zh-CN' xmlns:mstts='https://www.w3.org/2001/mstts'>
+            <voice xml:lang='zh-CN' name='${targetVoiceId}'>
+              ${content}
+            </voice>
+          </speak>
+        `;
       };
 
-      const result = RNFS.downloadFile(options);
-      const response = await result.promise;
+      const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+      console.log(`📡 TTS URL: ${url}`); // 调试日志：确认 URL
 
-      if (response.statusCode !== 200) {
-        console.error('❌ Azure TTS Error Status:', response.statusCode);
-        throw new Error(`Azure TTS 失败 (${response.statusCode})`);
+      // 通用请求函数 (修复：使用 fetch 替代 RNFS.downloadFile 以支持 POST 和 Body)
+      const doTTSRequest = async (ssmlBody: string): Promise<number> => {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Ocp-Apim-Subscription-Key': apiKey,
+              'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+              'Content-Type': 'application/ssml+xml; charset=utf-8',
+              'User-Agent': 'VirtualHumanApp'
+            },
+            body: ssmlBody,
+          });
+
+          if (!response.ok) {
+            console.error('TTS Fetch Error:', response.status, await response.text());
+            return response.status;
+          }
+
+          // 获取二进制数据并写入文件
+          const blob = await response.blob();
+
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              if (typeof reader.result === 'string') {
+                // reader.result 格式为 "data:application/octet-stream;base64,....."
+                const base64data = reader.result.split(',')[1];
+                await RNFS.writeFile(destPath, base64data, 'base64');
+                resolve(200);
+              } else {
+                resolve(500);
+              }
+            };
+            reader.onerror = () => {
+              console.error('Blob read error');
+              resolve(500);
+            };
+            reader.readAsDataURL(blob);
+          });
+
+        } catch (err) {
+          console.error('TTS Network Error:', err);
+          return 500;
+        }
+      };
+
+      // --- 尝试策略 ---
+
+      // 优化：如果 prosody 是默认值，不要包裹标签，减少出错概率
+      const useProsody = pitch !== 'default' || Math.abs(speed - 1.0) > 0.01;
+
+      // 1. 完整尝试
+      let statusCode = await doTTSRequest(buildSSML(voiceId, true, useProsody));
+
+      // 2. 失败重试 A: 可能是风格(Style)不支持 -> 去除风格，保留语速
+      if ((statusCode === 400 || statusCode === 404) && style && style !== 'default') {
+        console.warn(`⚠️ Azure TTS Style '${style}' failed. Retrying without style...`);
+        statusCode = await doTTSRequest(buildSSML(voiceId, false));
+      }
+
+      // 3. 失败重试 B: 可能是该 VoiceId 在该区域不可用 -> 尝试使用"晓晓"作为兜底 (Safety Voice)
+      // 只有当当前 voiceId 不是晓晓时才重试，避免死循环
+      const safetyVoice = 'zh-CN-XiaoxiaoNeural';
+      if ((statusCode === 400 || statusCode === 404) && voiceId !== safetyVoice) {
+        console.warn(`⚠️ Azure TTS Voice '${voiceId}' failed. Fallback to '${safetyVoice}'...`);
+        statusCode = await doTTSRequest(buildSSML(safetyVoice, false));
+      }
+
+      if (statusCode !== 200) {
+        console.error('❌ Azure TTS Final Failure:', statusCode);
+        // 尝试读取错误文件内容（RNFS downloadFile 404 时，错误信息可能在文件中）
+        try {
+            const errContent = await RNFS.readFile(destPath, 'utf8');
+            console.log('📄 Error Response Body:', errContent);
+        } catch (e) { /* ignore */ }
+
+        throw new Error(`Azure TTS 失败 (${statusCode})`);
       }
 
       console.log('✅ Azure TTS Saved to:', destPath);

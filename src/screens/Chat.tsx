@@ -76,32 +76,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     }
   }, [messages]);
 
-  // 自动播放AI回复的语音
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.role === 'assistant' &&
-      lastMessage.mode === 'voice' &&
-      lastMessage.audioUrl &&
-      autoPlay
-    ) {
-      // 延迟一下再播放
-      setTimeout(() => {
-        playAudio(lastMessage.audioUrl!);
-      }, 500);
-    }
-  }, [messages]);
-
-  const playAudio = async (audioUrl: string) => {
-    try {
-      // 这里可以集成AudioPlayer组件的播放逻辑
-      console.log('Auto playing audio:', audioUrl);
-    } catch (error) {
-      console.error('Auto play failed:', error);
-    }
-  };
-
   const handleSendText = async () => {
     const text = inputText.trim();
     if (!text || typing) {
@@ -154,7 +128,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
           ref={flatListRef}
           data={messages}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View>
               <MessageBubble message={item} />
               {/* 如果消息有音频，显示播放器 */}
@@ -168,7 +142,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                   <AudioPlayer
                     audioUrl={item.audioUrl}
                     duration={item.audioDuration}
-                    autoPlay={item.role === 'assistant' && autoPlay}
+                    autoPlay={
+                      item.role === 'assistant' &&
+                      autoPlay &&
+                      index === messages.length - 1 // 仅自动播放最新一条
+                    }
                   />
                 </View>
               )}

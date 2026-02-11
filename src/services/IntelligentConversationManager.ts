@@ -8,6 +8,7 @@ import MemoryManagementService from './MemoryManagementService';
 import ContextManagementService from './ContextManagementService';
 import EmotionAnalysisService from './EmotionAnalysisService';
 import PromptOptimizationService from './PromptOptimizationService';
+import SpeechService from './SpeechService'; // 新增
 import VirtualHumanDAO from '@database/VirtualHumanDAO';
 import MessageDAO from '@database/MessageDAO';
 import { Emotion } from '@types';
@@ -21,6 +22,7 @@ export interface IntelligentChatRequest {
 export interface IntelligentChatResponse {
   content: string;
   emotion: Emotion;
+  audioUrl?: string; // 新增：语音文件路径
   tokensUsed: number;
   metadata: {
     memoriesUsed: number;
@@ -36,8 +38,6 @@ export class IntelligentConversationManager {
    */
   async initialize(): Promise<void> {
     console.log('Initializing IntelligentConversationManager...');
-    // 这里可以预加载模型配置或其他初始化工作
-    // 目前暂时保持为空，或者进行简单的检查
     return Promise.resolve();
   }
 
@@ -49,9 +49,9 @@ export class IntelligentConversationManager {
     request: IntelligentChatRequest
   ): Promise<IntelligentChatResponse> {
     try {
-      const { virtualHumanId, userMessage } = request;
+      const { virtualHumanId, userMessage, mode = 'text' } = request;
 
-      // 1. 并行获取虚拟人信息和分析用户情感 (降低延迟)
+      // 1. 并行获取虚拟人信息和分析用户情感
       const [virtualHuman, userEmotion] = await Promise.all([
         VirtualHumanDAO.getById(virtualHumanId),
         EmotionAnalysisService.analyzeEmotion(userMessage)
@@ -85,7 +85,7 @@ export class IntelligentConversationManager {
           occupation: virtualHuman.occupation,
           personality: virtualHuman.personality,
           backgroundStory: virtualHuman.backgroundStory,
-          experiences: [], // 可以从数据库获取
+          experiences: [],
         },
         memories,
         emotion: userEmotion,
@@ -110,7 +110,7 @@ export class IntelligentConversationManager {
         },
       ];
 
-      // 6. 调用 AI（使用优化的参数）
+      // 6. 调用 AI
       const aiResponse = await AIService.chat({
         messages: messages,
         personality: virtualHuman.personality,
@@ -118,13 +118,32 @@ export class IntelligentConversationManager {
         maxTokens: aiParams.maxTokens,
       });
 
-      // 7. 提取新记忆（异步）
+      // 7. [新增] 如果是语音模式，生成语音回复 (TTS)
+      let audioUrl: string | undefined;
+      if (mode === 'voice' || mode === 'video') {
+        try {
+          const style = this.mapEmotionToAzureStyle(aiResponse.emotion);
+          console.log(`🎙️ Generating TTS for response. Emotion: ${aiResponse.emotion} -> Style: ${style}`);
+
+          audioUrl = await SpeechService.textToSpeech(aiResponse.content, {
+            voiceId: virtualHuman.voiceId, // 使用虚拟人的专属音色
+            style: style,
+            speed: 1.0, // 未来可根据性格动态调整语速
+          });
+        } catch (ttsError) {
+          console.error('TTS Generation failed:', ttsError);
+          // 语音生成失败不应阻断文本回复
+        }
+      }
+
+      // 8. 提取新记忆（异步）
       this.extractAndSaveMemories(virtualHumanId, userMessage, aiResponse.content);
 
-      // 8. 返回响应
+      // 9. 返回响应
       return {
         content: aiResponse.content,
         emotion: aiResponse.emotion,
+        audioUrl, // 返回生成的语音路径
         tokensUsed: aiResponse.tokensUsed,
         metadata: {
           memoriesUsed: memories.length,
@@ -136,9 +155,8 @@ export class IntelligentConversationManager {
     } catch (error: any) {
       console.error('IntelligentConversationManager Error:', error);
 
-      // 错误处理：返回友好的错误提示，防止 UI 卡死
       return {
-        content: `[系统提示] 暂时无法连接到 AI 服务。请检查电脑端服务是否启动 (端口 3000)，或尝试运行 "adb reverse tcp:3000 tcp:3000"。\n\n技术详情: ${error.message || '网络连接异常'}`,
+        content: `[系统提示] AI 服务暂时不可用: ${error.message || '未知错误'}`,
         emotion: 'neutral',
         tokensUsed: 0,
         metadata: {
@@ -149,6 +167,22 @@ export class IntelligentConversationManager {
         },
       };
     }
+  }
+
+  /**
+   * 将通用情感映射为 Azure TTS 风格
+   */
+  private mapEmotionToAzureStyle(emotion: Emotion): string {
+    const map: Record<string, string> = {
+      happy: 'cheerful',
+      excited: 'cheerful',
+      sad: 'sad',
+      angry: 'angry',
+      surprised: 'cheerful', // 惊讶通常用较轻快的语气
+      thinking: 'chat',
+      neutral: 'chat',
+    };
+    return map[emotion] || 'chat';
   }
 
   /**
