@@ -4,6 +4,7 @@
 
 import { Platform, PermissionsAndroid } from 'react-native';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
+import AudioRecord from 'react-native-audio-record';
 import RNFS from 'react-native-fs';
 import { AppError, ErrorCode } from '@types';
 
@@ -14,6 +15,16 @@ export class AudioRecorderService {
 
   constructor() {
     this.recorderPlayer = new AudioRecorderPlayer();
+
+    // 初始化录音配置 (录制为 Azure 需要的 16k 16bit 单声道 WAV)
+    const options = {
+      sampleRate: 16000,
+      channels: 1,
+      bitsPerSample: 16,
+      audioSource: 6, // VoiceRecognition
+      wavFile: 'audio.wav'
+    };
+    AudioRecord.init(options);
   }
 
   /**
@@ -52,21 +63,26 @@ export class AudioRecorderService {
     }
 
     try {
-      // 生成录音文件路径
-      const fileName = `recording_${Date.now()}.m4a`;
-      this.currentRecordPath = `${RNFS.DocumentDirectoryPath}/recordings/${fileName}`;
-
-      // 确保目录存在
-      await RNFS.mkdir(`${RNFS.DocumentDirectoryPath}/recordings`).catch(() => {});
-
-      // 开始录音
-      await this.recorderPlayer.startRecorder(this.currentRecordPath);
-      this.isRecording = true;
-
-      // 监听录音进度
-      if (onProgress) {
-        this.recorderPlayer.addRecordBackListener(onProgress);
+      if (this.isRecording) {
+        await this.stopRecording();
       }
+
+      console.log('🎙️ Starting WAV recording...');
+
+      // 每次录音前重新初始化，防止 "uninitialized" 错误
+      const options = {
+        sampleRate: 16000,
+        channels: 1,
+        bitsPerSample: 16,
+        audioSource: 6, // VoiceRecognition
+        wavFile: 'audio.wav'
+      };
+      AudioRecord.init(options);
+
+      AudioRecord.start();
+
+      this.isRecording = true;
+      this.currentRecordPath = '';
     } catch (error) {
       console.error('Start recording error:', error);
       throw new AppError(ErrorCode.AUDIO_FORMAT_INVALID, '录音失败');
@@ -78,18 +94,22 @@ export class AudioRecorderService {
    */
   async stopRecording(): Promise<string> {
     if (!this.isRecording) {
-      throw new Error('Not recording');
+      console.warn('stopRecording called but not recording');
+      return this.currentRecordPath;
     }
 
     try {
-      await this.recorderPlayer.stopRecorder();
-      this.recorderPlayer.removeRecordBackListener();
+      console.log('⏹️ Stopping WAV recording...');
+      const filePath = await AudioRecord.stop();
+      this.currentRecordPath = filePath;
       this.isRecording = false;
 
-      return this.currentRecordPath;
+      console.log('✅ WAV File created:', filePath);
+      return filePath;
     } catch (error) {
-      console.error('Stop recording error:', error);
-      throw new AppError(ErrorCode.AUDIO_FORMAT_INVALID, '停止录音失败');
+      console.warn('Stop recorder warning:', error);
+      this.isRecording = false;
+      return '';
     }
   }
 

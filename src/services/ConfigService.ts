@@ -5,6 +5,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import {
+  OPENAI_API_KEY as ENV_OPENAI_KEY,
+  AZURE_SPEECH_KEY as ENV_AZURE_KEY,
+  AZURE_SPEECH_REGION as ENV_AZURE_REGION
+} from '@env';
 
 export interface AppConfig {
   // 功能开关
@@ -82,7 +87,7 @@ export class ConfigService {
     api: {
       openaiApiKey: '',
       azureSpeechKey: '',
-      azureSpeechRegion: 'eastus',
+      azureSpeechRegion: 'westus2',
       timeout: 30000,
       retryAttempts: 3,
     },
@@ -221,9 +226,9 @@ export class ConfigService {
 
     switch (service) {
       case 'openai':
-        return this.config.api.openaiApiKey;
+        return this.config.api.openaiApiKey || ENV_OPENAI_KEY || '';
       case 'azureSpeech':
-        return this.config.api.azureSpeechKey;
+        return this.config.api.azureSpeechKey || ENV_AZURE_KEY || '';
       default:
         return '';
     }
